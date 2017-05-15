@@ -1,19 +1,36 @@
 #ifndef UKF_H
 #define UKF_H
 
-#include "measurement_package.h"
+#include "MeasurementRadar.hpp"
+#include "MeasurementLaser.hpp"
+#include "Math.hpp"
 #include "Eigen/Dense"
 #include <vector>
 #include <string>
 #include <fstream>
-#include "tools.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 class UKF {
 public:
+  /**
+ * Constructor
+ */
+  UKF();
 
+  /**
+   * ProcessMeasurement
+   * @param result: the resulting state vector from the measurement is returned in this variable by reference.
+   * @param nis: returns the NIS in this variable.
+   * @measurement: measurement from lidar or radar.
+   * @return: true if measurement was successfully processed, false otherwise.
+   */
+  bool processMeasurement(Eigen::VectorXd &result, double &nis, const MeasurementRadar *measurement);
+
+  bool processMeasurement(Eigen::VectorXd &result, double &nis, const MeasurementLaser *measurement);
+
+private:
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -74,21 +91,11 @@ public:
   ///* the current NIS for laser
   double NIS_laser_;
 
-  /**
-   * Constructor
-   */
-  UKF();
+  bool initialMeasurementProcessing(const Measurement *measurement);
 
-  /**
-   * Destructor
-   */
-  virtual ~UKF();
+  double getDeltaTime(const Measurement *measurement);
 
-  /**
-   * ProcessMeasurement
-   * @param meas_package The latest measurement data of either radar or laser
-   */
-  void ProcessMeasurement(MeasurementPackage meas_package);
+  void init(const Measurement *measurement);
 
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
@@ -101,13 +108,13 @@ public:
    * Updates the state and the state covariance matrix using a laser measurement
    * @param meas_package The measurement at k+1
    */
-  void UpdateLidar(MeasurementPackage meas_package);
+  void UpdateLidar(const MeasurementLaser *measurement);
 
   /**
    * Updates the state and the state covariance matrix using a radar measurement
    * @param meas_package The measurement at k+1
    */
-  void UpdateRadar(MeasurementPackage meas_package);
+  void UpdateRadar(const MeasurementRadar *measurement);
 };
 
 #endif /* UKF_H */
