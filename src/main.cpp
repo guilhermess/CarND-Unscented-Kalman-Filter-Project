@@ -53,8 +53,8 @@ void check_files(ifstream& in_file, string& in_name,
 }
 
 int main(int argc, char* argv[]) {
-
   check_arguments(argc, argv);
+
 
   string in_file_name_ = argv[1];
   ifstream in_file_(in_file_name_.c_str(), ifstream::in);
@@ -81,11 +81,14 @@ int main(int argc, char* argv[]) {
   check_files(in_file_, in_file_name_, out_file_, out_file_name_);
 
   // Create a UKF instance
-  UKF ukf;
+  UKF ukf{true, true, 0.35, 0.45, 0.15, 0.15, 0.3, 0.03, 0.3};
 
   // used to compute the RMSE later
   vector<VectorXd> estimation_vector;
   vector<VectorXd> ground_truth_vector;
+
+  vector<double> nis_laser;
+  vector<double> nis_radar;
 
   string line;
 
@@ -111,10 +114,11 @@ int main(int argc, char* argv[]) {
       measurement << x, y;
       iss >> timestamp;
       auto laser_measurement = MeasurementLaser(measurement, timestamp);
-      if ( !ukf.processMeasurement(measurement_result, nis, &laser_measurement) )
+      if (!ukf.processMeasurement(measurement_result, nis, &laser_measurement))
         continue;
       cartesian_measurement = laser_measurement.getCartesianMeasurement();
       measurement_type = "lidar";
+      nis_laser.push_back(nis);
     } else if (sensor_type.compare("R") == 0) {
       // RADAR MEASUREMENT
       VectorXd measurement{3};
@@ -127,10 +131,11 @@ int main(int argc, char* argv[]) {
       measurement << ro, phi, ro_dot;
       iss >> timestamp;
       auto radar_measurement = MeasurementRadar(measurement, timestamp);
-      if ( !ukf.processMeasurement(measurement_result, nis, &radar_measurement) )
+      if (!ukf.processMeasurement(measurement_result, nis, &radar_measurement))
         continue;
       cartesian_measurement = radar_measurement.getCartesianMeasurement();
       measurement_type = "radar";
+      nis_radar.push_back(nis);
     }
     // read ground truth data to compare later
     float x_gt;
@@ -167,7 +172,7 @@ int main(int argc, char* argv[]) {
     out_file_ << ground_truth.getValue()(2) << "\t";
     out_file_ << ground_truth.getValue()(3) << "\n";
 
-    estimation_vector.push_back(measurement_result);
+    estimation_vector.push_back(math::stateVectorToPositionAndVelocity(measurement_result));
     ground_truth_vector.push_back(ground_truth.getValue());
   }
 
@@ -183,6 +188,9 @@ int main(int argc, char* argv[]) {
     in_file_.close();
   }
 
-  cout << "Done!" << endl;
+  std::cout << "NIS laser: " << static_cast<double>(math::countInRange(nis_laser, 0.103, 5.991)) / nis_laser.size()
+            << std::endl;
+  std::cout << "NIS radar: " << static_cast<double>(math::countInRange(nis_radar, 0.352, 7.815)) / nis_radar.size()
+            << std::endl;
   return 0;
 }
